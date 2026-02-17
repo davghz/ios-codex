@@ -4,7 +4,7 @@ Latest OpenAI Codex CLI patched for `process.platform=ios` with a native `aarch6
 
 ## What This Repo Includes
 
-- `dist/com.openai.codex-ios_0.0.0-1_iphoneos-arm.deb`
+- `dist/com.openai.codex-ios_0.0.0-2_iphoneos-arm.deb`
 - Upstream patch set: `patches/0001-ios-codex.patch`
 - Modified source files (for transparency):
   - `source/codex-rs/Cargo.toml`
@@ -35,14 +35,14 @@ npm install -g @openai/codex@latest
 Copy the package:
 
 ```bash
-scp dist/com.openai.codex-ios_0.0.0-1_iphoneos-arm.deb root@<DEVICE_IP>:/var/root/
+scp dist/com.openai.codex-ios_0.0.0-2_iphoneos-arm.deb root@<DEVICE_IP>:/var/root/
 ```
 
 Install on device:
 
 ```bash
 ssh root@<DEVICE_IP>
-dpkg -i /var/root/com.openai.codex-ios_0.0.0-1_iphoneos-arm.deb
+dpkg -i /var/root/com.openai.codex-ios_0.0.0-2_iphoneos-arm.deb
 ```
 
 Verify as `mobile` (NewTerm2 user):
@@ -87,19 +87,22 @@ Build package:
 
 Output:
 
-`dist/com.openai.codex-ios_0.0.0-1_iphoneos-arm.deb`
+`dist/com.openai.codex-ios_0.0.0-2_iphoneos-arm.deb`
 
 ## How the Package Works
 
-`postinst` patches:
+`postinst` patches/configures:
 
 - `/usr/local/lib/node_modules/@openai/codex/bin/codex.js`
+- `/usr/local/bin/node` (forces iOS-safe Node flags)
+- `/usr/local/bin/codex` (stable launcher)
+- `/usr/bin/codex` (shim for minimal PATH shells)
 
 Changes applied:
 
 - Adds target mapping for `aarch64-apple-ios`
 - Adds `case "ios"` platform dispatch
-- Installs local vendor binary path used by launcher fallback
+- Signs `codex` and `node22` with `ldid -S` when available
 
 ## Notes
 

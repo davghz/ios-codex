@@ -1,6 +1,6 @@
 Package: com.openai.codex-ios
 Name: Codex iOS Compatibility Port
-Version: 0.0.0-1
+Version: 0.0.0-2
 Architecture: iphoneos-arm
 Maintainer: davgz
 Depends: firmware (>= 13.0)
