@@ -1,0 +1,58 @@
+diff --git a/codex-rs/Cargo.toml b/codex-rs/Cargo.toml
+index 75b3d18d3..f611c4c7c 100644
+--- a/codex-rs/Cargo.toml
++++ b/codex-rs/Cargo.toml
+@@ -144,7 +144,7 @@ age = "0.11.1"
+ allocative = "0.3.3"
+ ansi-to-tui = "7.0.0"
+ anyhow = "1"
+-arboard = { version = "3", features = ["wayland-data-control"] }
++arboard = { version = "3" }
+ askama = "0.15.4"
+ assert_cmd = "2"
+ assert_matches = "1.5.0"
+@@ -346,13 +346,13 @@ ignored = [
+ ]
+ 
+ [profile.release]
+-lto = "fat"
++lto = "off"
+ # Because we bundle some of these executables with the TypeScript CLI, we
+ # remove everything to make the binary as small as possible.
+ strip = "symbols"
+ 
+ # See https://github.com/openai/codex/issues/1411 for details.
+-codegen-units = 1
++codegen-units = 16
+ 
+ [profile.ci-test]
+ debug = 1         # Reduce debug symbol size
+diff --git a/codex-rs/cli/src/main.rs b/codex-rs/cli/src/main.rs
+index cae322c77..8812e2ad4 100644
+--- a/codex-rs/cli/src/main.rs
++++ b/codex-rs/cli/src/main.rs
+@@ -31,6 +31,12 @@ use std::io::IsTerminal;
+ use std::path::PathBuf;
+ use supports_color::Stream;
+ 
++// iOS 13 toolchains can miss ___chkstk_darwin during final link when transitive
++// C deps (notably zstd) are built against newer SDK defaults.
++#[cfg(all(target_os = "ios", target_arch = "aarch64"))]
++#[unsafe(no_mangle)]
++pub extern "C" fn __chkstk_darwin() {}
++
+ #[cfg(target_os = "macos")]
+ mod app_cmd;
+ #[cfg(target_os = "macos")]
+diff --git a/codex-rs/process-hardening/src/lib.rs b/codex-rs/process-hardening/src/lib.rs
+index fb6145f17..0c4c87e50 100644
+--- a/codex-rs/process-hardening/src/lib.rs
++++ b/codex-rs/process-hardening/src/lib.rs
+@@ -34,6 +34,7 @@ const PTRACE_DENY_ATTACH_FAILED_EXIT_CODE: i32 = 6;
+     target_os = "linux",
+     target_os = "android",
+     target_os = "macos",
++    target_os = "ios",
+     target_os = "freebsd",
+     target_os = "netbsd",
+     target_os = "openbsd"
