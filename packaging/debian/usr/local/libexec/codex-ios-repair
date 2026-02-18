@@ -1,0 +1,182 @@
+#!/bin/sh
+set -e
+
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
+
+CODEX_JS="/usr/local/lib/node_modules/@openai/codex/bin/codex.js"
+NODE22_BIN="/usr/local/bin/node22"
+NODE_WRAPPER="/usr/local/bin/node"
+CODEX_LAUNCHER="/usr/local/bin/codex"
+CODEX_SHIM="/usr/bin/codex"
+
+IOS_STATE_DIR="/usr/local/lib/codex-ios"
+IOS_BIN_STABLE="${IOS_STATE_DIR}/codex"
+IOS_RG_STABLE="${IOS_STATE_DIR}/rg"
+
+CODEX_VENDOR_IOS_BIN="/usr/local/lib/node_modules/@openai/codex/vendor/aarch64-apple-ios/codex/codex"
+CODEX_DARWIN_VENDOR_IOS_BIN="/usr/local/lib/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-ios/codex/codex"
+CODEX_VENDOR_IOS_RG="/usr/local/lib/node_modules/@openai/codex/vendor/aarch64-apple-ios/path/rg"
+CODEX_DARWIN_VENDOR_IOS_RG="/usr/local/lib/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-ios/path/rg"
+
+MOBILE_PROFILE="/var/mobile/.profile"
+
+mkdir -p "$IOS_STATE_DIR"
+
+# Keep a canonical iOS binary outside npm-managed folders so npm updates do not
+# remove our runtime payload. On deb upgrades, refresh canonical payload when
+# packaged vendor bytes differ.
+if [ -f "$CODEX_VENDOR_IOS_BIN" ] && { [ ! -f "$IOS_BIN_STABLE" ] || ! cmp -s "$CODEX_VENDOR_IOS_BIN" "$IOS_BIN_STABLE"; }; then
+  cp -f "$CODEX_VENDOR_IOS_BIN" "$IOS_BIN_STABLE"
+fi
+
+if [ ! -f "$IOS_BIN_STABLE" ]; then
+  for src in \
+    "$CODEX_DARWIN_VENDOR_IOS_BIN" \
+    /usr/local/lib/node_modules/@openai/.codex-darwin-arm64-*/vendor/aarch64-apple-ios/codex/codex
+  do
+    if [ -f "$src" ]; then
+      cp -f "$src" "$IOS_BIN_STABLE"
+      break
+    fi
+  done
+fi
+
+if [ ! -f "$IOS_RG_STABLE" ]; then
+  cat >"$IOS_RG_STABLE" <<'EOF'
+#!/bin/sh
+# Minimal fallback to satisfy codex PATH vendor tool lookup on iOS.
+exec /usr/bin/grep "$@"
+EOF
+fi
+
+if [ -f "$IOS_BIN_STABLE" ]; then
+  mkdir -p "$(dirname "$CODEX_VENDOR_IOS_BIN")" "$(dirname "$CODEX_DARWIN_VENDOR_IOS_BIN")"
+  cp -f "$IOS_BIN_STABLE" "$CODEX_VENDOR_IOS_BIN"
+  cp -f "$IOS_BIN_STABLE" "$CODEX_DARWIN_VENDOR_IOS_BIN" 2>/dev/null || true
+  chown root:wheel "$IOS_BIN_STABLE" "$CODEX_VENDOR_IOS_BIN" "$CODEX_DARWIN_VENDOR_IOS_BIN" 2>/dev/null || true
+  chmod 755 "$IOS_BIN_STABLE" "$CODEX_VENDOR_IOS_BIN" "$CODEX_DARWIN_VENDOR_IOS_BIN" 2>/dev/null || true
+else
+  echo "[codex-ios] warning: no iOS codex binary found; repair is partial" >&2
+fi
+
+mkdir -p "$(dirname "$CODEX_VENDOR_IOS_RG")" "$(dirname "$CODEX_DARWIN_VENDOR_IOS_RG")"
+cp -f "$IOS_RG_STABLE" "$CODEX_VENDOR_IOS_RG"
+cp -f "$IOS_RG_STABLE" "$CODEX_DARWIN_VENDOR_IOS_RG" 2>/dev/null || true
+chown root:wheel "$IOS_RG_STABLE" "$CODEX_VENDOR_IOS_RG" "$CODEX_DARWIN_VENDOR_IOS_RG" 2>/dev/null || true
+chmod 755 "$IOS_RG_STABLE" "$CODEX_VENDOR_IOS_RG" "$CODEX_DARWIN_VENDOR_IOS_RG" 2>/dev/null || true
+
+PATCH_NODE="$NODE22_BIN"
+if [ ! -x "$PATCH_NODE" ] && command -v node >/dev/null 2>&1; then
+  PATCH_NODE="$(command -v node)"
+fi
+
+if [ -f "$CODEX_JS" ] && [ -x "$PATCH_NODE" ]; then
+  CODEX_JS="$CODEX_JS" "$PATCH_NODE" <<'NODE'
+const fs = require("fs");
+const path = process.env.CODEX_JS;
+if (!path || !fs.existsSync(path)) process.exit(0);
+let src = fs.readFileSync(path, "utf8");
+let changed = false;
+
+const mapNeedle = /(\s+"aarch64-apple-darwin":\s+"@openai\/codex-darwin-arm64",\n)/;
+if (!src.includes('"aarch64-apple-ios"')) {
+  src = src.replace(
+    mapNeedle,
+    '$1  "aarch64-apple-ios": "@openai/codex-darwin-arm64",\n',
+  );
+  changed = true;
+}
+
+if (!src.includes('case "ios":')) {
+  src = src.replace(
+    /\n\s+case "win32":/,
+    '\n  case "ios":\n    switch (arch) {\n      case "arm64":\n        targetTriple = "aarch64-apple-ios";\n        break;\n      default:\n        break;\n    }\n    break;\n  case "win32":',
+  );
+  changed = true;
+}
+
+if (!src.includes("const forwardedArgs = process.argv.slice(2);")) {
+  src = src.replace(
+    "const child = spawn(binaryPath, process.argv.slice(2), {",
+    'const forwardedArgs = process.argv.slice(2);\nif (!forwardedArgs.includes("--no-alt-screen")) {\n  forwardedArgs.unshift("--no-alt-screen");\n}\nconst child = spawn(binaryPath, forwardedArgs, {',
+  );
+  changed = true;
+}
+
+if (changed) {
+  const backup = `${path}.bak.${Date.now()}`;
+  fs.copyFileSync(path, backup);
+  fs.writeFileSync(path, src);
+  console.log(`[codex-ios] patched ${path}`);
+}
+NODE
+fi
+
+if [ -x "$NODE22_BIN" ]; then
+  cat >"$NODE_WRAPPER" <<'EOF'
+#!/bin/sh
+# iOS 13 stability flags for Node.js 22 under jailbreak environments.
+NODE_ARGS="--max-opt=0 --no-sparkplug --max-old-space-size=512 --disable-wasm-trap-handler"
+exec /usr/local/bin/node22 $NODE_ARGS "$@"
+EOF
+  chown root:wheel "$NODE_WRAPPER" 2>/dev/null || true
+  chmod 755 "$NODE_WRAPPER"
+fi
+
+[ -L "$CODEX_LAUNCHER" ] && rm -f "$CODEX_LAUNCHER"
+cat >"$CODEX_LAUNCHER" <<'EOF'
+#!/bin/sh
+# Stable iOS launcher for Codex in NewTerm2/mobile shells.
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
+
+if [ "${1:-}" = "--version" ] || [ "${1:-}" = "-V" ]; then
+  PKG_VER="$(/usr/local/bin/node22 -e 'try{process.stdout.write(require("/usr/local/lib/node_modules/@openai/codex/package.json").version)}catch(e){process.stdout.write("0.0.0")}' 2>/dev/null || echo "0.0.0")"
+  echo "codex-cli ${PKG_VER}"
+  exit 0
+fi
+
+ALT_SCREEN_CFG='tui.alternate_screen="never"'
+exec /usr/local/bin/node22 --max-opt=0 --no-sparkplug --max-old-space-size=512 --disable-wasm-trap-handler \
+  /usr/local/lib/node_modules/@openai/codex/bin/codex.js \
+  -c disable_paste_burst=true \
+  -c "$ALT_SCREEN_CFG" \
+  --no-alt-screen "$@"
+EOF
+chown root:wheel "$CODEX_LAUNCHER" 2>/dev/null || true
+chmod 755 "$CODEX_LAUNCHER"
+
+if [ -d /usr/bin ]; then
+  cat >"$CODEX_SHIM" <<'EOF'
+#!/bin/sh
+exec /usr/local/bin/codex "$@"
+EOF
+  chown root:wheel "$CODEX_SHIM" 2>/dev/null || true
+  chmod 755 "$CODEX_SHIM" || true
+fi
+
+if [ -f "$MOBILE_PROFILE" ] && ! grep -q 'Improve TUI rendering consistency in NewTerm2' "$MOBILE_PROFILE"; then
+  cat >>"$MOBILE_PROFILE" <<'EOF'
+
+# Improve TUI rendering consistency in NewTerm2.
+export LANG=en_US.UTF-8
+export LC_CTYPE=en_US.UTF-8
+[ -z "$TERM" ] && export TERM=xterm-256color
+EOF
+  chown mobile:mobile "$MOBILE_PROFILE" 2>/dev/null || true
+  chmod 644 "$MOBILE_PROFILE" 2>/dev/null || true
+fi
+
+if command -v ldid >/dev/null 2>&1; then
+  for f in "$IOS_BIN_STABLE" "$CODEX_VENDOR_IOS_BIN" "$CODEX_DARWIN_VENDOR_IOS_BIN" "$NODE22_BIN"; do
+    [ -f "$f" ] && ldid -S "$f" || true
+  done
+fi
+
+for f in /usr/local/libexec/codex-ios-repair /usr/local/bin/codex-update; do
+  [ -f "$f" ] && chown root:wheel "$f" 2>/dev/null || true
+  [ -f "$f" ] && chmod 755 "$f" 2>/dev/null || true
+done
+
+echo "[codex-ios] repair complete"

@@ -6,7 +6,8 @@ PKGROOT="$ROOT/packaging/debian"
 OUTDIR="$ROOT/dist"
 mkdir -p "$OUTDIR"
 
-PKG="com.openai.codex-ios_0.0.0-2_iphoneos-arm.deb"
+VERSION="$(awk '/^Version:/{print $2; exit}' "$PKGROOT/DEBIAN/control")"
+PKG="com.openai.codex-ios_${VERSION}_iphoneos-arm.deb"
 dpkg-deb -b "$PKGROOT" "$OUTDIR/$PKG"
 
 echo "Built: $OUTDIR/$PKG"

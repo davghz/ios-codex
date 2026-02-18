@@ -4,7 +4,7 @@ Latest OpenAI Codex CLI patched for `process.platform=ios` with a native `aarch6
 
 ## What This Repo Includes
 
-- `dist/com.openai.codex-ios_0.0.0-2_iphoneos-arm.deb`
+- `dist/com.openai.codex-ios_0.0.0-6_iphoneos-arm.deb`
 - Upstream patch set: `patches/0001-ios-codex.patch`
 - Modified source files (for transparency):
   - `source/codex-rs/Cargo.toml`
@@ -35,14 +35,14 @@ npm install -g @openai/codex@latest
 Copy the package:
 
 ```bash
-scp dist/com.openai.codex-ios_0.0.0-2_iphoneos-arm.deb root@<DEVICE_IP>:/var/root/
+scp dist/com.openai.codex-ios_0.0.0-6_iphoneos-arm.deb root@<DEVICE_IP>:/var/root/
 ```
 
 Install on device:
 
 ```bash
 ssh root@<DEVICE_IP>
-dpkg -i /var/root/com.openai.codex-ios_0.0.0-2_iphoneos-arm.deb
+dpkg -i /var/root/com.openai.codex-ios_0.0.0-6_iphoneos-arm.deb
 ```
 
 Verify as `mobile` (NewTerm2 user):
@@ -87,22 +87,49 @@ Build package:
 
 Output:
 
-`dist/com.openai.codex-ios_0.0.0-2_iphoneos-arm.deb`
+`dist/com.openai.codex-ios_0.0.0-6_iphoneos-arm.deb`
 
 ## How the Package Works
 
-`postinst` patches/configures:
+`postinst` runs `/usr/local/libexec/codex-ios-repair` which patches/configures:
 
 - `/usr/local/lib/node_modules/@openai/codex/bin/codex.js`
 - `/usr/local/bin/node` (forces iOS-safe Node flags)
-- `/usr/local/bin/codex` (stable launcher)
+- `/usr/local/bin/codex` (stable launcher with paste-safe config defaults)
 - `/usr/bin/codex` (shim for minimal PATH shells)
+- `/usr/local/bin/codex-update` (safe update helper)
+- `/usr/local/lib/codex-ios/codex` (canonical iOS binary backup outside npm paths)
 
 Changes applied:
 
 - Adds target mapping for `aarch64-apple-ios`
 - Adds `case "ios"` platform dispatch
+- Forces `--no-alt-screen` and `disable_paste_burst=true` to reduce NewTerm2 TUI/paste glitches
 - Signs `codex` and `node22` with `ldid -S` when available
+
+## Future Updates (Safe Path)
+
+Do not run plain `npm install -g @openai/codex@latest` directly.
+
+Use:
+
+```bash
+su -c '/usr/local/bin/codex-update'
+```
+
+What `codex-update` does:
+
+- Updates npm Codex with retries under stable Node flags
+- Replays all iOS patches automatically
+- Restores stable launch wrappers if npm replaced symlinks
+- Preserves/repairs the iOS native binary payload
+- Makes `codex --version` report the npm package version (instead of stale `0.0.0`)
+
+You can also specify an explicit package/version:
+
+```bash
+su -c '/usr/local/bin/codex-update @openai/codex@0.103.0'
+```
 
 ## Notes
 

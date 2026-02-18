@@ -1,0 +1,53 @@
+#!/bin/sh
+set -e
+
+PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
+
+if [ "$(id -u)" -ne 0 ]; then
+  echo "codex-update must run as root." >&2
+  echo "Use: su -c '/usr/local/bin/codex-update'" >&2
+  exit 1
+fi
+
+NPM_BIN="/usr/local/bin/npm22"
+NPM_CLI="/usr/local/lib/node22/node_modules/npm/bin/npm-cli.js"
+REPAIR="/usr/local/libexec/codex-ios-repair"
+PKG="${1:-@openai/codex@latest}"
+MAX_ATTEMPTS="${MAX_ATTEMPTS:-3}"
+STABLE_NODE_FLAGS="--max-opt=0 --no-sparkplug --max-old-space-size=512 --disable-wasm-trap-handler"
+
+if [ ! -x "$NPM_BIN" ]; then
+  echo "missing $NPM_BIN" >&2
+  exit 1
+fi
+
+attempt=1
+while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
+  echo "[codex-update] attempt ${attempt}/${MAX_ATTEMPTS}: npm22 install -g ${PKG}"
+  if [ -x /usr/local/bin/node22 ] && [ -f "$NPM_CLI" ]; then
+    INSTALL_OK=0
+    # Run npm via node22 directly to apply stability flags without NODE_OPTIONS restrictions.
+    /usr/local/bin/node22 $STABLE_NODE_FLAGS "$NPM_CLI" install -g "$PKG" || INSTALL_OK=$?
+    if [ "$INSTALL_OK" -eq 0 ]; then
+      break
+    fi
+  elif "$NPM_BIN" install -g "$PKG"; then
+    break
+  fi
+  if [ "$attempt" -ge "$MAX_ATTEMPTS" ]; then
+    echo "[codex-update] npm install failed after ${MAX_ATTEMPTS} attempts" >&2
+    exit 1
+  fi
+  sleep "$attempt"
+  attempt=$((attempt + 1))
+done
+
+if [ -x "$REPAIR" ]; then
+  "$REPAIR"
+else
+  echo "[codex-update] warning: repair helper missing ($REPAIR)" >&2
+fi
+
+su mobile -c 'PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin codex --version' || true
+echo "[codex-update] done"
