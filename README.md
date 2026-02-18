@@ -21,6 +21,22 @@ Upstream repository: `https://github.com/openai/codex`
 
 Base commit used for this port is in `UPSTREAM_COMMIT.txt`.
 
+## Build Requirements
+
+- macOS host
+- Rust toolchain (required to compile Codex):
+
+```bash
+curl https://sh.rustup.rs -sSf | sh
+rustup toolchain install 1.93.0
+rustup target add --toolchain 1.93.0 aarch64-apple-ios
+```
+
+- Theos with a device SDK for the iOS version you are targeting (for jailbroken hardware builds, not simulator builds), for example:
+  - `iPhoneOS13.7.sdk`
+  - `iPhoneOS14.8.sdk`
+  - `iPhoneOS15.x.sdk`
+
 ## Device Requirements
 
 - Jailbroken iOS arm64 device (tested on iOS 13.x; may also work on other iOS versions)
@@ -53,9 +69,11 @@ su mobile -c 'codex --version'
 su mobile -c 'codex --help'
 ```
 
-## Build iOS Binary From Source
+## Build iOS Binary From Source (Theos SDK Workflow)
 
-On macOS with Xcode + Rust toolchain:
+Use this workflow for real jailbroken-device targets. It uses a Theos `iPhoneOS*.sdk` sysroot instead of simulator tooling.
+
+Clone upstream source:
 
 ```bash
 git clone https://github.com/openai/codex codex-upstream
@@ -63,12 +81,22 @@ cd codex-upstream
 # Checkout the commit from ../ios-codex/UPSTREAM_COMMIT.txt
 ```
 
-Apply patch and build:
+Build with Rust + Theos SDK:
 
 ```bash
+export PATH="$HOME/.cargo/bin:$PATH"
+export THEOS="/path/to/theos"
+export SDKROOT="$THEOS/sdks/iPhoneOS<MAJOR.MINOR>.sdk"
+export IPHONEOS_DEPLOYMENT_TARGET="<MAJOR.MINOR>"
+
 cd /path/to/ios-codex
 ./scripts/build-ios-binary.sh /path/to/codex-upstream
 ```
+
+Notes:
+
+- Pick the `iPhoneOS<MAJOR.MINOR>.sdk` version that matches your device target version.
+- This repository targets jailbroken devices; treat Theos SDK builds as the default path.
 
 Binary output:
 
