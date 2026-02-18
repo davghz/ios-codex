@@ -5,9 +5,11 @@ PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 export PATH
 
 if [ "$(id -u)" -ne 0 ]; then
-  echo "codex-update must run as root." >&2
-  echo "Use: su -c '/usr/local/bin/codex-update'" >&2
-  exit 1
+  if [ -n "${1:-}" ]; then
+    exec su -c "/usr/local/bin/codex-update \"$1\""
+  else
+    exec su -c "/usr/local/bin/codex-update"
+  fi
 fi
 
 NPM_BIN="/usr/local/bin/npm22"

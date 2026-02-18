@@ -13,6 +13,7 @@ CODEX_SHIM="/usr/bin/codex"
 IOS_STATE_DIR="/usr/local/lib/codex-ios"
 IOS_BIN_STABLE="${IOS_STATE_DIR}/codex"
 IOS_RG_STABLE="${IOS_STATE_DIR}/rg"
+IOS_SHIM_BIN_DIR="${IOS_STATE_DIR}/bin"
 
 CODEX_VENDOR_IOS_BIN="/usr/local/lib/node_modules/@openai/codex/vendor/aarch64-apple-ios/codex/codex"
 CODEX_DARWIN_VENDOR_IOS_BIN="/usr/local/lib/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-ios/codex/codex"
@@ -21,7 +22,7 @@ CODEX_DARWIN_VENDOR_IOS_RG="/usr/local/lib/node_modules/@openai/codex-darwin-arm
 
 MOBILE_PROFILE="/var/mobile/.profile"
 
-mkdir -p "$IOS_STATE_DIR"
+mkdir -p "$IOS_STATE_DIR" "$IOS_SHIM_BIN_DIR"
 
 # Keep a canonical iOS binary outside npm-managed folders so npm updates do not
 # remove our runtime payload. On deb upgrades, refresh canonical payload when
@@ -49,6 +50,32 @@ if [ ! -f "$IOS_RG_STABLE" ]; then
 exec /usr/bin/grep "$@"
 EOF
 fi
+
+cat >"${IOS_SHIM_BIN_DIR}/npm" <<'EOF'
+#!/bin/sh
+set -e
+
+if [ "${1:-}" = "install" ] && [ "${2:-}" = "-g" ]; then
+  case "${3:-}" in
+    @openai/codex|@openai/codex@*)
+      exec /usr/local/bin/codex-update "${3:-@openai/codex@latest}"
+      ;;
+  esac
+fi
+
+if [ -x /usr/local/bin/npm22 ]; then
+  exec /usr/local/bin/npm22 "$@"
+fi
+
+if [ -x /usr/local/bin/node22 ] && [ -f /usr/local/lib/node22/node_modules/npm/bin/npm-cli.js ]; then
+  exec /usr/local/bin/node22 /usr/local/lib/node22/node_modules/npm/bin/npm-cli.js "$@"
+fi
+
+echo "npm shim: no npm runtime found" >&2
+exit 127
+EOF
+chown root:wheel "${IOS_SHIM_BIN_DIR}/npm" 2>/dev/null || true
+chmod 755 "${IOS_SHIM_BIN_DIR}/npm"
 
 if [ -f "$IOS_BIN_STABLE" ]; then
   mkdir -p "$(dirname "$CODEX_VENDOR_IOS_BIN")" "$(dirname "$CODEX_DARWIN_VENDOR_IOS_BIN")"
@@ -96,10 +123,12 @@ if (!src.includes('case "ios":')) {
   changed = true;
 }
 
-if (!src.includes("const forwardedArgs = process.argv.slice(2);")) {
+const forcedNoAltScreenBlock =
+  'const forwardedArgs = process.argv.slice(2);\nif (!forwardedArgs.includes("--no-alt-screen")) {\n  forwardedArgs.unshift("--no-alt-screen");\n}\nconst child = spawn(binaryPath, forwardedArgs, {';
+if (src.includes(forcedNoAltScreenBlock)) {
   src = src.replace(
+    forcedNoAltScreenBlock,
     "const child = spawn(binaryPath, process.argv.slice(2), {",
-    'const forwardedArgs = process.argv.slice(2);\nif (!forwardedArgs.includes("--no-alt-screen")) {\n  forwardedArgs.unshift("--no-alt-screen");\n}\nconst child = spawn(binaryPath, forwardedArgs, {',
   );
   changed = true;
 }
@@ -128,8 +157,10 @@ fi
 cat >"$CODEX_LAUNCHER" <<'EOF'
 #!/bin/sh
 # Stable iOS launcher for Codex in NewTerm2/mobile shells.
-PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+PATH=/usr/local/lib/codex-ios/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 export PATH
+export TERM=xterm-256color
+export COLORTERM=truecolor
 
 if [ "${1:-}" = "--version" ] || [ "${1:-}" = "-V" ]; then
   PKG_VER="$(/usr/local/bin/node22 -e 'try{process.stdout.write(require("/usr/local/lib/node_modules/@openai/codex/package.json").version)}catch(e){process.stdout.write("0.0.0")}' 2>/dev/null || echo "0.0.0")"
@@ -137,12 +168,25 @@ if [ "${1:-}" = "--version" ] || [ "${1:-}" = "-V" ]; then
   exit 0
 fi
 
-ALT_SCREEN_CFG='tui.alternate_screen="never"'
+if [ "${1:-}" = "update" ]; then
+  shift
+  if [ -n "${1:-}" ] && [ "${1#@openai/codex}" != "$1" ]; then
+    exec /usr/local/bin/codex-update "$1"
+  else
+    exec /usr/local/bin/codex-update
+  fi
+fi
+
+ALT_SCREEN_CFG='tui.alternate_screen="always"'
+TUI_ANIM_CFG='tui.animations=false'
+TUI_TOOLTIPS_CFG='tui.show_tooltips=false'
 exec /usr/local/bin/node22 --max-opt=0 --no-sparkplug --max-old-space-size=512 --disable-wasm-trap-handler \
   /usr/local/lib/node_modules/@openai/codex/bin/codex.js \
   -c disable_paste_burst=true \
   -c "$ALT_SCREEN_CFG" \
-  --no-alt-screen "$@"
+  -c "$TUI_ANIM_CFG" \
+  -c "$TUI_TOOLTIPS_CFG" \
+  "$@"
 EOF
 chown root:wheel "$CODEX_LAUNCHER" 2>/dev/null || true
 chmod 755 "$CODEX_LAUNCHER"
