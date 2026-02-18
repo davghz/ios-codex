@@ -133,15 +133,15 @@ mod imp {
         Ok(fg.zip(bg).map(|(fg, bg)| DefaultColors { fg, bg }))
     }
 
+    #[cfg(target_os = "ios")]
     fn should_query_palette() -> bool {
-        #[cfg(target_os = "ios")]
-        {
-            if let Ok(program) = std::env::var("TERM_PROGRAM") {
-                if program.to_ascii_lowercase().contains("newterm") {
-                    return false;
-                }
-            }
-        }
+        // On iOS/NewTerm, OSC palette queries can render as visible `10;?`/`11;?` text.
+        // Use fallback/default theme colors instead of probing terminal defaults.
+        false
+    }
+
+    #[cfg(not(target_os = "ios"))]
+    fn should_query_palette() -> bool {
         true
     }
 

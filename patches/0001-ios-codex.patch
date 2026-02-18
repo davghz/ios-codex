@@ -1,7 +1,16 @@
 diff --git a/codex-rs/Cargo.toml b/codex-rs/Cargo.toml
-index 75b3d18d3..f611c4c7c 100644
+index 75b3d18d3..2be388a44 100644
 --- a/codex-rs/Cargo.toml
 +++ b/codex-rs/Cargo.toml
+@@ -66,7 +66,7 @@ members = [
+ resolver = "2"
+ 
+ [workspace.package]
+-version = "0.0.0"
++version = "0.103.0"
+ # Track the edition for all workspace crates in one place. Individual
+ # crates can still override this value, but keeping it here means new
+ # crates created with `cargo new -w ...` automatically inherit the 2024
 @@ -144,7 +144,7 @@ age = "0.11.1"
  allocative = "0.3.3"
  ansi-to-tui = "7.0.0"
@@ -56,9 +65,66 @@ index fb6145f17..0c4c87e50 100644
      target_os = "freebsd",
      target_os = "netbsd",
      target_os = "openbsd"
-
+diff --git a/codex-rs/tui/src/custom_terminal.rs b/codex-rs/tui/src/custom_terminal.rs
+index 26284a7fa..4e955f45d 100644
+--- a/codex-rs/tui/src/custom_terminal.rs
++++ b/codex-rs/tui/src/custom_terminal.rs
+@@ -147,12 +147,28 @@ where
+     /// Creates a new [`Terminal`] with the given [`Backend`] and [`TerminalOptions`].
+     pub fn with_options(mut backend: B) -> io::Result<Self> {
+         let screen_size = backend.size()?;
+-        let cursor_pos = backend.get_cursor_position().unwrap_or_else(|err| {
+-            // Some PTYs do not answer CPR (`ESC[6n`); continue with a safe default instead
+-            // of failing TUI startup.
+-            tracing::warn!("failed to read initial cursor position; defaulting to origin: {err}");
+-            Position { x: 0, y: 0 }
+-        });
++        let fallback_cursor_pos = Position {
++            x: 0,
++            y: screen_size.height.saturating_sub(1),
++        };
++        let cursor_pos = if should_skip_initial_cursor_query() {
++            tracing::info!(
++                "skipping initial cursor position query; defaulting to bottom row y={}",
++                fallback_cursor_pos.y
++            );
++            fallback_cursor_pos
++        } else {
++            backend.get_cursor_position().unwrap_or_else(|err| {
++                // Some PTYs do not answer CPR (`ESC[6n`). Defaulting to y=0 can place the inline
++                // viewport at the top of the screen and corrupt startup rendering. Fall back to the
++                // last visible row so inline mode starts near a shell prompt-like position.
++                tracing::warn!(
++                    "failed to read initial cursor position; defaulting to bottom row y={}: {err}",
++                    fallback_cursor_pos.y
++                );
++                fallback_cursor_pos
++            })
++        };
+         Ok(Self {
+             backend,
+             buffers: [Buffer::empty(Rect::ZERO), Buffer::empty(Rect::ZERO)],
+@@ -411,6 +427,18 @@ where
+     }
+ }
+ 
++#[cfg(target_os = "ios")]
++fn should_skip_initial_cursor_query() -> bool {
++    // NewTerm can intermittently drop CPR responses (`ESC[6n`) right after startup.
++    // Always skip the initial cursor probe on iOS and use the bottom-row fallback.
++    true
++}
++
++#[cfg(not(target_os = "ios"))]
++fn should_skip_initial_cursor_query() -> bool {
++    false
++}
++
+ use ratatui::buffer::Cell;
+ use unicode_width::UnicodeWidthStr;
+ 
 diff --git a/codex-rs/tui/src/terminal_palette.rs b/codex-rs/tui/src/terminal_palette.rs
-index 6349c007e..a62b38a85 100644
+index 6349c007e..7a04c7baa 100644
 --- a/codex-rs/tui/src/terminal_palette.rs
 +++ b/codex-rs/tui/src/terminal_palette.rs
 @@ -125,11 +125,26 @@ mod imp {
@@ -73,18 +139,41 @@ index 6349c007e..a62b38a85 100644
          Ok(fg.zip(bg).map(|(fg, bg)| DefaultColors { fg, bg }))
      }
  
++    #[cfg(target_os = "ios")]
 +    fn should_query_palette() -> bool {
-+        #[cfg(target_os = "ios")]
-+        {
-+            if let Ok(program) = std::env::var("TERM_PROGRAM") {
-+                if program.to_ascii_lowercase().contains("newterm") {
-+                    return false;
-+                }
-+            }
-+        }
++        // On iOS/NewTerm, OSC palette queries can render as visible `10;?`/`11;?` text.
++        // Use fallback/default theme colors instead of probing terminal defaults.
++        false
++    }
++
++    #[cfg(not(target_os = "ios"))]
++    fn should_query_palette() -> bool {
 +        true
 +    }
 +
      fn color_to_tuple(color: CrosstermColor) -> Option<(u8, u8, u8)> {
          match color {
              CrosstermColor::Rgb { r, g, b } => Some((r, g, b)),
+diff --git a/codex-rs/tui/src/tui.rs b/codex-rs/tui/src/tui.rs
+index ab9c88d2a..fcb6103c6 100644
+--- a/codex-rs/tui/src/tui.rs
++++ b/codex-rs/tui/src/tui.rs
+@@ -519,6 +519,18 @@ impl Tui {
+     }
+ 
+     fn pending_viewport_area(&mut self) -> Result<Option<Rect>> {
++        #[cfg(target_os = "ios")]
++        {
++            if std::env::var("TERM_PROGRAM")
++                .ok()
++                .is_some_and(|program| program.to_ascii_lowercase().contains("newterm"))
++            {
++                // NewTerm's CPR/resize reporting can be inconsistent; this iTerm2-oriented
++                // viewport realignment heuristic can shift the inline frame and degrade
++                // rendering. Keep the existing viewport area unchanged.
++                return Ok(None);
++            }
++        }
+         let terminal = &mut self.terminal;
+         let screen_size = terminal.size()?;
+         let last_known_screen_size = terminal.last_known_screen_size;
