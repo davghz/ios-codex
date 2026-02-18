@@ -10,6 +10,7 @@ Latest OpenAI Codex CLI patched for `process.platform=ios` with a native `aarch6
   - `source/codex-rs/Cargo.toml`
   - `source/codex-rs/process-hardening/src/lib.rs`
   - `source/codex-rs/cli/src/main.rs`
+  - `source/codex-rs/tui/src/terminal_palette.rs`
 - Build scripts:
   - `scripts/build-ios-binary.sh`
   - `scripts/build-deb.sh`

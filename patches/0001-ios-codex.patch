@@ -56,3 +56,35 @@ index fb6145f17..0c4c87e50 100644
      target_os = "freebsd",
      target_os = "netbsd",
      target_os = "openbsd"
+
+diff --git a/codex-rs/tui/src/terminal_palette.rs b/codex-rs/tui/src/terminal_palette.rs
+index 6349c007e..a62b38a85 100644
+--- a/codex-rs/tui/src/terminal_palette.rs
++++ b/codex-rs/tui/src/terminal_palette.rs
+@@ -125,11 +125,26 @@ mod imp {
+     }
+ 
+     fn query_default_colors() -> std::io::Result<Option<DefaultColors>> {
++        if !should_query_palette() {
++            return Ok(None);
++        }
+         let fg = query_foreground_color()?.and_then(color_to_tuple);
+         let bg = query_background_color()?.and_then(color_to_tuple);
+         Ok(fg.zip(bg).map(|(fg, bg)| DefaultColors { fg, bg }))
+     }
+ 
++    fn should_query_palette() -> bool {
++        #[cfg(target_os = "ios")]
++        {
++            if let Ok(program) = std::env::var("TERM_PROGRAM") {
++                if program.to_ascii_lowercase().contains("newterm") {
++                    return false;
++                }
++            }
++        }
++        true
++    }
++
+     fn color_to_tuple(color: CrosstermColor) -> Option<(u8, u8, u8)> {
+         match color {
+             CrosstermColor::Rgb { r, g, b } => Some((r, g, b)),
