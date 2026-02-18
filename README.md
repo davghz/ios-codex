@@ -22,7 +22,7 @@ Base commit used for this port is in `UPSTREAM_COMMIT.txt`.
 
 ## Device Requirements
 
-- Jailbroken iOS arm64 device (tested on iOS 13.x)
+- Jailbroken iOS arm64 device (tested on iOS 13.x; may also work on other iOS versions)
 - Node.js installed on-device
 - Latest npm Codex installed on-device:
 
@@ -135,3 +135,4 @@ su -c '/usr/local/bin/codex-update @openai/codex@0.103.0'
 
 - This repo only ports **Codex**. It does not make Claude Code stable on iOS 13.
 - `path/rg` in this package is a minimal shim (`grep`) to satisfy tool path expectations.
+- Compatibility note: iOS 13.x is the validated baseline. Other jailbreakable iOS versions may work, but are not yet exhaustively tested.
