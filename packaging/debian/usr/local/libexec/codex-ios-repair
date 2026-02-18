@@ -81,8 +81,17 @@ if [ -f "$IOS_BIN_STABLE" ]; then
   mkdir -p "$(dirname "$CODEX_VENDOR_IOS_BIN")" "$(dirname "$CODEX_DARWIN_VENDOR_IOS_BIN")"
   cp -f "$IOS_BIN_STABLE" "$CODEX_VENDOR_IOS_BIN"
   cp -f "$IOS_BIN_STABLE" "$CODEX_DARWIN_VENDOR_IOS_BIN" 2>/dev/null || true
+  for scoped_bin in /usr/local/lib/node_modules/@openai/.codex-darwin-arm64-*/vendor/aarch64-apple-ios/codex/codex; do
+    [ -f "$scoped_bin" ] || continue
+    cp -f "$IOS_BIN_STABLE" "$scoped_bin" 2>/dev/null || true
+  done
   chown root:wheel "$IOS_BIN_STABLE" "$CODEX_VENDOR_IOS_BIN" "$CODEX_DARWIN_VENDOR_IOS_BIN" 2>/dev/null || true
   chmod 755 "$IOS_BIN_STABLE" "$CODEX_VENDOR_IOS_BIN" "$CODEX_DARWIN_VENDOR_IOS_BIN" 2>/dev/null || true
+  for scoped_bin in /usr/local/lib/node_modules/@openai/.codex-darwin-arm64-*/vendor/aarch64-apple-ios/codex/codex; do
+    [ -f "$scoped_bin" ] || continue
+    chown root:wheel "$scoped_bin" 2>/dev/null || true
+    chmod 755 "$scoped_bin" 2>/dev/null || true
+  done
 else
   echo "[codex-ios] warning: no iOS codex binary found; repair is partial" >&2
 fi
@@ -90,8 +99,17 @@ fi
 mkdir -p "$(dirname "$CODEX_VENDOR_IOS_RG")" "$(dirname "$CODEX_DARWIN_VENDOR_IOS_RG")"
 cp -f "$IOS_RG_STABLE" "$CODEX_VENDOR_IOS_RG"
 cp -f "$IOS_RG_STABLE" "$CODEX_DARWIN_VENDOR_IOS_RG" 2>/dev/null || true
+for scoped_rg in /usr/local/lib/node_modules/@openai/.codex-darwin-arm64-*/vendor/aarch64-apple-ios/path/rg; do
+  [ -f "$scoped_rg" ] || continue
+  cp -f "$IOS_RG_STABLE" "$scoped_rg" 2>/dev/null || true
+done
 chown root:wheel "$IOS_RG_STABLE" "$CODEX_VENDOR_IOS_RG" "$CODEX_DARWIN_VENDOR_IOS_RG" 2>/dev/null || true
 chmod 755 "$IOS_RG_STABLE" "$CODEX_VENDOR_IOS_RG" "$CODEX_DARWIN_VENDOR_IOS_RG" 2>/dev/null || true
+for scoped_rg in /usr/local/lib/node_modules/@openai/.codex-darwin-arm64-*/vendor/aarch64-apple-ios/path/rg; do
+  [ -f "$scoped_rg" ] || continue
+  chown root:wheel "$scoped_rg" 2>/dev/null || true
+  chmod 755 "$scoped_rg" 2>/dev/null || true
+done
 
 PATCH_NODE="$NODE22_BIN"
 if [ ! -x "$PATCH_NODE" ] && command -v node >/dev/null 2>&1; then
@@ -214,6 +232,9 @@ fi
 
 if command -v ldid >/dev/null 2>&1; then
   for f in "$IOS_BIN_STABLE" "$CODEX_VENDOR_IOS_BIN" "$CODEX_DARWIN_VENDOR_IOS_BIN" "$NODE22_BIN"; do
+    [ -f "$f" ] && ldid -S "$f" || true
+  done
+  for f in /usr/local/lib/node_modules/@openai/.codex-darwin-arm64-*/vendor/aarch64-apple-ios/codex/codex; do
     [ -f "$f" ] && ldid -S "$f" || true
   done
 fi
