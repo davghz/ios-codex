@@ -131,6 +131,32 @@ You can also specify an explicit package/version:
 su -c '/usr/local/bin/codex-update @openai/codex@0.103.0'
 ```
 
+## OpenRouter Usage
+
+The iOS launcher now supports OpenRouter automatically when either:
+
+- `OPENROUTER_API_KEY` is set, or
+- `OPENROUTER_BASE_URL` is set, or
+- `CODEX_OPENROUTER=1` is set.
+
+Defaults:
+
+- `OPENROUTER_BASE_URL` defaults to `https://openrouter.ai/api/v1`
+- provider is injected as `model_provider="openrouter"` with `env_key="OPENROUTER_API_KEY"`
+
+Example:
+
+```bash
+export OPENROUTER_API_KEY='sk-or-v1-...'
+codex -m openrouter/auto
+```
+
+Compatibility bridge:
+
+- If `OPENAI_BASE_URL` contains `openrouter.ai`, launcher maps:
+  - `OPENAI_BASE_URL -> OPENROUTER_BASE_URL` (when unset)
+  - `OPENAI_API_KEY -> OPENROUTER_API_KEY` (when unset)
+
 ## Notes
 
 - This repo only ports **Codex**. It does not make Claude Code stable on iOS 13.

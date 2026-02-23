@@ -138,11 +138,44 @@ if [ "${1:-}" = "--version" ] || [ "${1:-}" = "-V" ]; then
 fi
 
 ALT_SCREEN_CFG='tui.alternate_screen="never"'
-exec /usr/local/bin/node22 --max-opt=0 --no-sparkplug --max-old-space-size=512 --disable-wasm-trap-handler \
-  /usr/local/lib/node_modules/@openai/codex/bin/codex.js \
+
+# If users point OPENAI_BASE_URL at OpenRouter, bridge existing OPENAI_* envs
+# into OPENROUTER_* so we can switch to a provider definition that uses env_key.
+case "${OPENAI_BASE_URL:-}" in
+  *openrouter.ai*)
+    [ -z "${OPENROUTER_BASE_URL:-}" ] && OPENROUTER_BASE_URL="${OPENAI_BASE_URL}"
+    if [ -z "${OPENROUTER_API_KEY:-}" ] && [ -n "${OPENAI_API_KEY:-}" ]; then
+      OPENROUTER_API_KEY="${OPENAI_API_KEY}"
+    fi
+    ;;
+esac
+
+set -- \
   -c disable_paste_burst=true \
   -c "$ALT_SCREEN_CFG" \
-  --no-alt-screen "$@"
+  --no-alt-screen \
+  "$@"
+
+USE_OPENROUTER=0
+if [ "${CODEX_OPENROUTER:-0}" = "1" ] || [ -n "${OPENROUTER_API_KEY:-}" ] || [ -n "${OPENROUTER_BASE_URL:-}" ]; then
+  USE_OPENROUTER=1
+fi
+
+if [ "$USE_OPENROUTER" -eq 1 ]; then
+  [ -z "${OPENROUTER_BASE_URL:-}" ] && OPENROUTER_BASE_URL="https://openrouter.ai/api/v1"
+  export OPENROUTER_BASE_URL
+  [ -n "${OPENROUTER_API_KEY:-}" ] && export OPENROUTER_API_KEY
+
+  set -- \
+    -c 'model_provider="openrouter"' \
+    -c 'model_providers.openrouter.name="OpenRouter"' \
+    -c "model_providers.openrouter.base_url=\"${OPENROUTER_BASE_URL}\"" \
+    -c 'model_providers.openrouter.env_key="OPENROUTER_API_KEY"' \
+    "$@"
+fi
+
+exec /usr/local/bin/node22 --max-opt=0 --no-sparkplug --max-old-space-size=512 --disable-wasm-trap-handler \
+  /usr/local/lib/node_modules/@openai/codex/bin/codex.js "$@"
 EOF
 chown root:wheel "$CODEX_LAUNCHER" 2>/dev/null || true
 chmod 755 "$CODEX_LAUNCHER"
