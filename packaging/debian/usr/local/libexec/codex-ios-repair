@@ -42,13 +42,18 @@ if [ ! -f "$IOS_BIN_STABLE" ]; then
   done
 fi
 
-if [ ! -f "$IOS_RG_STABLE" ]; then
-  cat >"$IOS_RG_STABLE" <<'EOF'
+cat >"$IOS_RG_STABLE" <<'EOF'
 #!/bin/sh
 # Minimal fallback to satisfy codex PATH vendor tool lookup on iOS.
-exec /usr/bin/grep "$@"
-EOF
+GREP_BIN="$(command -v grep 2>/dev/null || true)"
+[ -z "$GREP_BIN" ] && [ -x /bin/grep ] && GREP_BIN="/bin/grep"
+[ -z "$GREP_BIN" ] && [ -x /usr/bin/grep ] && GREP_BIN="/usr/bin/grep"
+if [ -z "$GREP_BIN" ]; then
+  echo "codex-ios rg shim error: grep not found" >&2
+  exit 127
 fi
+exec "$GREP_BIN" "$@"
+EOF
 
 if [ -f "$IOS_BIN_STABLE" ]; then
   mkdir -p "$(dirname "$CODEX_VENDOR_IOS_BIN")" "$(dirname "$CODEX_DARWIN_VENDOR_IOS_BIN")"
@@ -96,14 +101,6 @@ if (!src.includes('case "ios":')) {
   changed = true;
 }
 
-if (!src.includes("const forwardedArgs = process.argv.slice(2);")) {
-  src = src.replace(
-    "const child = spawn(binaryPath, process.argv.slice(2), {",
-    'const forwardedArgs = process.argv.slice(2);\nif (!forwardedArgs.includes("--no-alt-screen")) {\n  forwardedArgs.unshift("--no-alt-screen");\n}\nconst child = spawn(binaryPath, forwardedArgs, {',
-  );
-  changed = true;
-}
-
 if (changed) {
   const backup = `${path}.bak.${Date.now()}`;
   fs.copyFileSync(path, backup);
@@ -138,6 +135,17 @@ if [ "${1:-}" = "--version" ] || [ "${1:-}" = "-V" ]; then
 fi
 
 ALT_SCREEN_CFG='tui.alternate_screen="never"'
+CODEX_VENDOR_BIN="/usr/local/lib/node_modules/@openai/codex/vendor/aarch64-apple-ios/codex/codex"
+CODEX_STABLE_BIN="/usr/local/lib/codex-ios/codex"
+
+supports_no_alt_screen() {
+  for probe in "$CODEX_VENDOR_BIN" "$CODEX_STABLE_BIN"; do
+    if [ -x "$probe" ] && "$probe" --help 2>/dev/null | /usr/bin/grep -q -- '--no-alt-screen'; then
+      return 0
+    fi
+  done
+  return 1
+}
 
 # If users point OPENAI_BASE_URL at OpenRouter, bridge existing OPENAI_* envs
 # into OPENROUTER_* so we can switch to a provider definition that uses env_key.
@@ -153,8 +161,21 @@ esac
 set -- \
   -c disable_paste_burst=true \
   -c "$ALT_SCREEN_CFG" \
-  --no-alt-screen \
   "$@"
+
+ADD_NO_ALT_SCREEN=1
+for arg in "$@"; do
+  case "$arg" in
+    --no-alt-screen|--alt-screen)
+      ADD_NO_ALT_SCREEN=0
+      break
+      ;;
+  esac
+done
+
+if [ "$ADD_NO_ALT_SCREEN" -eq 1 ] && supports_no_alt_screen; then
+  set -- --no-alt-screen "$@"
+fi
 
 USE_OPENROUTER=0
 if [ "${CODEX_OPENROUTER:-0}" = "1" ] || [ -n "${OPENROUTER_API_KEY:-}" ] || [ -n "${OPENROUTER_BASE_URL:-}" ]; then

@@ -1,0 +1,46 @@
+#!/bin/sh
+set -e
+
+CODEX_JS="/usr/local/lib/node_modules/@openai/codex/bin/codex.js"
+CODEX_BIN="/usr/local/lib/node_modules/@openai/codex/vendor/aarch64-apple-ios/codex/codex"
+
+if [ -f "$CODEX_JS" ] && command -v node >/dev/null 2>&1; then
+  CODEX_JS="$CODEX_JS" node <<'NODE'
+const fs = require('fs');
+const path = process.env.CODEX_JS;
+if (!path || !fs.existsSync(path)) process.exit(0);
+let src = fs.readFileSync(path, 'utf8');
+let changed = false;
+
+if (!src.includes('"aarch64-apple-ios"')) {
+  src = src.replace(
+    /(\s+"aarch64-apple-darwin":\s+"@openai\/codex-darwin-arm64",\n)/,
+    '$1  "aarch64-apple-ios": "@openai/codex-ios-arm64",\n',
+  );
+  changed = true;
+}
+
+if (!src.includes('case "ios":')) {
+  src = src.replace(
+    /\n\s+case "win32":/,
+    '\n  case "ios":\n    switch (arch) {\n      case "arm64":\n        targetTriple = "aarch64-apple-ios";\n        break;\n      default:\n        break;\n    }\n    break;\n  case "win32":',
+  );
+  changed = true;
+}
+
+if (changed) {
+  const backup = `${path}.bak.${Date.now()}`;
+  fs.copyFileSync(path, backup);
+  fs.writeFileSync(path, src);
+  console.log(`[codex-ios] patched ${path}`);
+} else {
+  console.log('[codex-ios] codex.js already patched for iOS');
+}
+NODE
+fi
+
+if [ -f "$CODEX_BIN" ] && command -v ldid >/dev/null 2>&1; then
+  ldid -S "$CODEX_BIN" || true
+fi
+
+exit 0
