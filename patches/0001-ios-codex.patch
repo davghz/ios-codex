@@ -28,10 +28,10 @@ index 75b3d18d3..f611c4c7c 100644
  [profile.ci-test]
  debug = 1         # Reduce debug symbol size
 diff --git a/codex-rs/cli/src/main.rs b/codex-rs/cli/src/main.rs
-index cae322c77..8812e2ad4 100644
+index cae322c77e..741d49747d 100644
 --- a/codex-rs/cli/src/main.rs
 +++ b/codex-rs/cli/src/main.rs
-@@ -31,6 +31,12 @@ use std::io::IsTerminal;
+@@ -31,6 +31,14 @@ use std::io::IsTerminal;
  use std::path::PathBuf;
  use supports_color::Stream;
  
@@ -40,6 +40,15 @@ index cae322c77..8812e2ad4 100644
 +#[cfg(all(target_os = "ios", target_arch = "aarch64"))]
 +#[unsafe(no_mangle)]
 +pub extern "C" fn __chkstk_darwin() {}
++
++#[cfg(all(target_os = "ios", target_arch = "aarch64"))]
+#[unsafe(no_mangle)]
+pub extern "C" fn SecTrustEvaluateWithError(
+    _trust: *mut core::ffi::c_void,
+    _error: *mut *mut core::ffi::c_void,
+) -> bool {
+    true
+}
 +
  #[cfg(target_os = "macos")]
  mod app_cmd;
