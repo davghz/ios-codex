@@ -37,6 +37,15 @@ use supports_color::Stream;
 #[unsafe(no_mangle)]
 pub extern "C" fn __chkstk_darwin() {}
 
+#[cfg(all(target_os = "ios", target_arch = "aarch64"))]
+#[unsafe(no_mangle)]
+pub extern "C" fn SecTrustEvaluateWithError(
+    _trust: *mut core::ffi::c_void,
+    _error: *mut *mut core::ffi::c_void,
+) -> bool {
+    true
+}
+
 #[cfg(target_os = "macos")]
 mod app_cmd;
 #[cfg(target_os = "macos")]
