@@ -1,0 +1,27 @@
+#!/var/jb/bin/sh
+set -eu
+PATH=/var/jb/usr/bin:/var/jb/bin:/var/jb/usr/sbin:/var/jb/sbin:/usr/bin:/bin
+export PATH
+
+if [ "$#" -ne 1 ]; then
+    echo 'Usage: codex-update /absolute/path/to/codex_iphoneos-arm64.deb'
+    echo 'Install an iOS-native rootless package built from the port.'
+    echo 'npm updates do not update the native iOS executable.'
+    exit 2
+fi
+case "$1" in
+    /*.deb) ;;
+    *) echo 'Provide an absolute path to a .deb package.' >&2; exit 2 ;;
+esac
+[ -f "$1" ] || { echo 'Package file does not exist.' >&2; exit 1; }
+[ "$(dpkg-deb -f "$1" Package)" = com.openai.codex-ios ] || {
+    echo 'This is not a Codex iOS package.' >&2; exit 1;
+}
+[ "$(dpkg-deb -f "$1" Architecture)" = iphoneos-arm64 ] || {
+    echo 'This package is not for rootless iOS.' >&2; exit 1;
+}
+if [ "$(id -u)" -ne 0 ]; then
+    exec sudo -- /var/jb/usr/bin/codex-update "$1"
+fi
+dpkg -i "$1"
+/var/jb/usr/bin/codex --version

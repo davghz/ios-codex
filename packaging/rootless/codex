@@ -1,0 +1,20 @@
+#!/var/jb/bin/sh
+# Use the native port directly; npm packages do not supply an iOS executable.
+PATH="/var/jb/usr/bin:/var/jb/bin:/var/jb/usr/sbin:/var/jb/sbin:${PATH:-/usr/bin:/bin}"
+export PATH
+[ -n "${TERM:-}" ] || TERM=xterm-256color
+[ -n "${LANG:-}" ] || LANG=en_US.UTF-8
+export TERM LANG
+if [ -z "${SHELL:-}" ] || [ ! -x "$SHELL" ]; then
+    SHELL=/var/jb/usr/bin/zsh
+    export SHELL
+fi
+
+if [ "${1:-}" = update ]; then
+    shift
+    exec /var/jb/usr/bin/codex-update "$@"
+fi
+
+exec /var/jb/usr/libexec/codex-ios/codex \
+    -c disable_paste_burst=true \
+    -c check_for_update_on_startup=false "$@"

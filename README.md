@@ -1,5 +1,7 @@
 # iOS Codex (arm64) Port
 
+For **rootless iOS 15 or later**, use the [rootless package and instructions](packaging/rootless/README.md).
+
 Latest OpenAI Codex CLI patched for `process.platform=ios` with a native `aarch64-apple-ios` binary and packaged as a `.deb` for jailbroken iOS devices.
 
 ## What This Repo Includes
