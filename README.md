@@ -6,6 +6,24 @@ Use the [rootless package and instructions](packaging/rootless/README.md),
 [native source build script](scripts/build-rootless-ios-from-source.sh), and
 [pinned source provenance](packaging/rootless/UPSTREAM.txt).
 
+
+<!-- latest-rootless-download -->
+## Latest download
+
+| Release | Rootless package | SHA256 |
+| --- | --- | --- |
+| [Codex 0.168.0](https://github.com/davghz/ios-codex/releases/tag/v0.168.0-2-rootless) | [Download .deb](https://github.com/davghz/ios-codex/releases/download/v0.168.0-2-rootless/com.openai.codex-ios_0.168.0-2%2Brootless_iphoneos-arm64.deb) | [Checksum](https://github.com/davghz/ios-codex/releases/download/v0.168.0-2-rootless/com.openai.codex-ios_0.168.0-2%2Brootless_iphoneos-arm64.deb.sha256) |
+
+Requires **jailbroken rootless iOS 15 or later** (`iphoneos-arm64`).
+Install from the download folder with APT to resolve dependencies:
+
+```sh
+sudo apt install ./com.openai.codex-ios_0.168.0-2+rootless_iphoneos-arm64.deb
+```
+
+Includes the native Code Mode JavaScript host used by current ChatGPT Codex models. Node.js and npm are separate development tools and are not required by this package.
+<!-- /latest-rootless-download -->
+
 The rootless package installs under `/var/jb` and runs directly without Node.js
 or npm. Its package version is `0.168.0-2+rootless` (`iphoneos-arm64`).
 Download the [rootless package](dist/com.openai.codex-ios_0.168.0-1+rootless_iphoneos-arm64.deb)
