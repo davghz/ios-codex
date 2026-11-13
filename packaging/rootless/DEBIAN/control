@@ -1,6 +1,6 @@
 Package: com.openai.codex-ios
 Name: Codex iOS (Rootless)
-Version: 0.168.0-1+rootless
+Version: 0.168.0-2+rootless
 Architecture: iphoneos-arm64
 Maintainer: davgz
 Depends: firmware (>= 15.0), dash, ca-certificates, git, ripgrep

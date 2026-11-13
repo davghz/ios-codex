@@ -7,7 +7,7 @@ Use the [rootless package and instructions](packaging/rootless/README.md),
 [pinned source provenance](packaging/rootless/UPSTREAM.txt).
 
 The rootless package installs under `/var/jb` and runs directly without Node.js
-or npm. Its package version is `0.168.0-1+rootless` (`iphoneos-arm64`).
+or npm. Its package version is `0.168.0-2+rootless` (`iphoneos-arm64`).
 Download the [rootless package](dist/com.openai.codex-ios_0.168.0-1+rootless_iphoneos-arm64.deb)
 and its [SHA256 checksum](dist/com.openai.codex-ios_0.168.0-1+rootless_iphoneos-arm64.deb.sha256).
 

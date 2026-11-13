@@ -5,6 +5,13 @@ export PATH
 [ -n "${TERM:-}" ] || TERM=xterm-256color
 [ -n "${LANG:-}" ] || LANG=en_US.UTF-8
 export TERM LANG
+# Rustls does not discover the rootless bootstrap's certificate store on iOS.
+# Preserve explicit trust overrides while supplying the maintained system bundle.
+if [ -z "${CODEX_CA_CERTIFICATE:-}" ] && [ -z "${SSL_CERT_FILE:-}" ] && \
+   [ -z "${SSL_CERT_DIR:-}" ] && [ -r /var/jb/etc/ssl/cert.pem ]; then
+    SSL_CERT_FILE=/var/jb/etc/ssl/cert.pem
+    export SSL_CERT_FILE
+fi
 if [ -z "${SHELL:-}" ] || [ ! -x "$SHELL" ]; then
     SHELL=/var/jb/usr/bin/zsh
     export SHELL
