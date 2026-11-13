@@ -1,4 +1,4 @@
-# iOS Codex (arm64) Port
+# Codex CLI for iOS
 
 Latest OpenAI Codex CLI patched for `process.platform=ios` with a native `aarch64-apple-ios` binary and packaged as a `.deb` for jailbroken iOS devices.
 
