@@ -1,0 +1,61 @@
+--- a/codex-rs/code-mode-runtime/Cargo.toml
++++ b/codex-rs/code-mode-runtime/Cargo.toml
+@@ -27,7 +27,13 @@
+ tokio = { workspace = true, features = ["macros", "rt", "sync", "time"] }
+ tokio-util = { workspace = true, features = ["codec", "compat", "rt"] }
+ tracing = { workspace = true }
++# The published iOS V8 artifact is jitless and uses uncompressed pointers.
++# Match its ABI; keep the desktop V8 memory sandbox enabled on other targets.
++[target.'cfg(not(target_os = "ios"))'.dependencies]
+ v8 = { workspace = true, features = ["v8_enable_sandbox"] }
++
++[target.'cfg(target_os = "ios")'.dependencies]
++v8 = { workspace = true }
+ 
+ [dev-dependencies]
+ pretty_assertions = { workspace = true }
+--- a/codex-rs/code-mode-runtime/src/v8_init.rs
++++ b/codex-rs/code-mode-runtime/src/v8_init.rs
+@@ -1,11 +1,20 @@
+ use std::sync::OnceLock;
+ 
+ /// Controls whether V8 may generate executable code at runtime.
+-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+ pub enum V8JitMode {
+-    #[default]
+     Enabled,
+     Disabled,
++}
++
++impl Default for V8JitMode {
++    fn default() -> Self {
++        if cfg!(target_os = "ios") {
++            Self::Disabled
++        } else {
++            Self::Enabled
++        }
++    }
+ }
+ 
+ struct V8Initialization {
+@@ -19,8 +28,8 @@
+ ///
+ /// Call this before executing any code-mode cells when JIT must be disabled.
+ /// V8 cannot change JIT mode after initialization, so a later call requesting
+-/// a different mode returns an error. Code mode initializes V8 with JIT enabled
+-/// by default when this function has not been called explicitly.
++/// a different mode returns an error. Code mode defaults to JIT enabled on
++/// desktop targets and disabled on iOS, matching the upstream device artifact.
+ pub fn initialize_v8(jit_mode: V8JitMode) -> Result<(), String> {
+     match V8_INITIALIZATION.get_or_init(|| initialize_v8_with_mode(jit_mode)) {
+         Ok(initialization) if initialization.jit_mode == jit_mode => Ok(()),
+@@ -33,7 +42,7 @@
+ }
+ 
+ pub(crate) fn ensure_v8_initialized() -> Result<(), String> {
+-    match V8_INITIALIZATION.get_or_init(|| initialize_v8_with_mode(V8JitMode::Enabled)) {
++    match V8_INITIALIZATION.get_or_init(|| initialize_v8_with_mode(V8JitMode::default())) {
+         Ok(_) => Ok(()),
+         Err(error_text) => Err(error_text.clone()),
+     }
