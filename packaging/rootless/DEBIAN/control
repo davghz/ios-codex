@@ -1,0 +1,12 @@
+Package: com.openai.codex-ios
+Name: Codex iOS (Rootless)
+Version: 0.168.0-2+rootless
+Architecture: iphoneos-arm64
+Maintainer: davgz
+Depends: firmware (>= 15.0), dash, ca-certificates, git, ripgrep
+Section: Development
+Priority: optional
+Description: Native Codex CLI for rootless jailbroken iOS
+ Installs Codex 0.168.0 and its native code-mode host under /var/jb.
+ The matching native runtimes do not require Node.js or npm.
+ Updates require an iOS-native package; npm does not update this binary.

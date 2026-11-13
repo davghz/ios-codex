@@ -1,0 +1,27 @@
+#!/var/jb/bin/sh
+# Use the native port directly; npm packages do not supply an iOS executable.
+PATH="/var/jb/usr/bin:/var/jb/bin:/var/jb/usr/sbin:/var/jb/sbin:${PATH:-/usr/bin:/bin}"
+export PATH
+[ -n "${TERM:-}" ] || TERM=xterm-256color
+[ -n "${LANG:-}" ] || LANG=en_US.UTF-8
+export TERM LANG
+# Rustls does not discover the rootless bootstrap's certificate store on iOS.
+# Preserve explicit trust overrides while supplying the maintained system bundle.
+if [ -z "${CODEX_CA_CERTIFICATE:-}" ] && [ -z "${SSL_CERT_FILE:-}" ] && \
+   [ -z "${SSL_CERT_DIR:-}" ] && [ -r /var/jb/etc/ssl/cert.pem ]; then
+    SSL_CERT_FILE=/var/jb/etc/ssl/cert.pem
+    export SSL_CERT_FILE
+fi
+if [ -z "${SHELL:-}" ] || [ ! -x "$SHELL" ]; then
+    SHELL=/var/jb/usr/bin/zsh
+    export SHELL
+fi
+
+if [ "${1:-}" = update ]; then
+    shift
+    exec /var/jb/usr/bin/codex-update "$@"
+fi
+
+exec /var/jb/usr/libexec/codex-ios/codex \
+    -c tui.disable_paste_burst=true \
+    -c check_for_update_on_startup=false "$@"

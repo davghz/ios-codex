@@ -1,6 +1,22 @@
 # Codex CLI for iOS
 
-Latest OpenAI Codex CLI patched for `process.platform=ios` with a native `aarch64-apple-ios` binary and packaged as a `.deb` for jailbroken iOS devices.
+For **rootless iOS 15 or later**, the current package is **Codex 0.168.0**,
+built from the genuine `rust-v0.168.0` upstream release for `aarch64-apple-ios`.
+Use the [rootless package and instructions](packaging/rootless/README.md),
+[native source build script](scripts/build-rootless-ios-from-source.sh), and
+[pinned source provenance](packaging/rootless/UPSTREAM.txt).
+
+The rootless package installs under `/var/jb` and runs directly without Node.js
+or npm. Its package version is `0.168.0-2+rootless` (`iphoneos-arm64`).
+Download the [rootless package](dist/com.openai.codex-ios_0.168.0-1+rootless_iphoneos-arm64.deb)
+and its [SHA256 checksum](dist/com.openai.codex-ios_0.168.0-1+rootless_iphoneos-arm64.deb.sha256).
+
+## Legacy rootful iOS port
+
+The historical instructions below describe the earlier rootful iOS port,
+including its npm wrappers and source base `19afbc35c`. `UPSTREAM_COMMIT.txt`
+and the `source/` mirrors refer to that legacy port, not the 0.168.0 rootless
+build. Follow the rootless instructions linked above for current rootless devices.
 
 ## What This Repo Includes
 

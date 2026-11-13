@@ -1,1 +1,4 @@
 .DS_Store
+.build/
+# New package artifacts are published as GitHub Release assets.
+dist/*.deb
