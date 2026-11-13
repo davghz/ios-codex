@@ -16,5 +16,5 @@ if [ "${1:-}" = update ]; then
 fi
 
 exec /var/jb/usr/libexec/codex-ios/codex \
-    -c disable_paste_burst=true \
+    -c tui.disable_paste_burst=true \
     -c check_for_update_on_startup=false "$@"

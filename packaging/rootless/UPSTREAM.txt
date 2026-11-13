@@ -1,0 +1,7 @@
+Codex version: 0.168.0
+Upstream tag: rust-v0.168.0
+Upstream commit: 9480ec100c3edee9fc69172e8e80a4730444094d
+Source archive SHA256: db0dd491ff70089025d430647e846b251ccfae50ae63aebc766775350c5f1cb0
+Rust toolchain: 1.95.0
+Target: aarch64-apple-ios
+Deployment target: iOS 15.0
