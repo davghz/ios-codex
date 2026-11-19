@@ -52,6 +52,9 @@ earlier 0.103.0 package is archived in `dist`.
 
 ## Platform features
 
+The launcher raises a low soft open-file limit for Codex and its subprocesses,
+up to 4,096 descriptors where the device and account allow it.
+
 The complete package requires the matching native iOS `codex-code-mode-host`
 executable alongside the CLI, because modern model catalogs can require code
 mode even when experimental feature flags are disabled. The package builder
