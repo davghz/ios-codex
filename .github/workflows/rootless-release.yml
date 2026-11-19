@@ -2,7 +2,7 @@ name: Codex rootless iOS releases
 
 on:
   schedule:
-    - cron: '17 * * * *'
+    - cron: '47 * * * *'
   workflow_dispatch:
     inputs:
       upstream_tag:
@@ -37,7 +37,7 @@ jobs:
     needs: discover
     if: ${{ needs.discover.outputs.pending != '[]' }}
     runs-on: macos-15
-    timeout-minutes: 120
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       max-parallel: 3
