@@ -2,7 +2,7 @@ name: Codex rootless iOS releases
 
 on:
   schedule:
-    - cron: '47 * * * *'
+    - cron: '54 * * * *'
   workflow_dispatch:
     inputs:
       upstream_tag:
