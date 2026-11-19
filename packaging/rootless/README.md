@@ -1,47 +1,17 @@
 # Rootless iOS installation
 
-This package builds **Codex 0.168.0** from the actual upstream release source
-for `aarch64-apple-ios`, with an iOS 15 deployment target. It installs under
-`/var/jb` with package architecture `iphoneos-arm64`. Node.js and npm are
-unnecessary for the native CLI.
-
-The release tag, commit, archive checksum, and Rust version are recorded in
-`UPSTREAM.txt`. The iOS patch is `patches/rootless/codex-0.168.0-ios.patch`.
-The earlier 0.103.0 package remains archived in `dist`.
-
-## Build
-
-On macOS, install Xcode, rustup, `dpkg-deb`, and `ldid`. Point `SDKROOT` to an
-iPhoneOS device SDK, such as a Theos `iPhoneOS18.5.sdk`:
-
-```sh
-SDKROOT=/path/to/iPhoneOS18.5.sdk bash scripts/build-rootless-ios-from-source.sh
-SDKROOT=/path/to/iPhoneOS18.5.sdk bash scripts/build-ios-code-mode-host.sh \
-  .build/codex-rust-v0.168.0
-bash scripts/build-rootless-deb.sh \
-  .build/codex-rust-v0.168.0/codex-rs/target/aarch64-apple-ios/release/codex \
-  .build/codex-rust-v0.168.0/codex-rs/target/aarch64-apple-ios/release/codex-code-mode-host
-```
-
-The source builder verifies pinned source archive checksums, applies the iOS
-patch, and installs Rust 1.95.0 with iOS standard libraries. It limits builds
-to two jobs by default and disables LTO to reduce memory use. The standalone
-code-mode host's unchanged V8 source is supplied from its exact pinned archive
-for Cargo workspace metadata; that separate binary is not linked into the CLI.
-
-Output: `dist/com.openai.codex-ios_0.168.0-2+rootless_iphoneos-arm64.deb`.
+The native package targets `aarch64-apple-ios` with an iOS 15 deployment target.
+It installs under `/var/jb` with package architecture `iphoneos-arm64`. The
+[latest release](https://github.com/davghz/ios-codex/releases/latest) includes
+the `.deb` and its SHA256 checksum. Each package contains its upstream build
+provenance at `/var/jb/usr/share/doc/com.openai.codex-ios/UPSTREAM.txt`.
 
 ## Install and use
 
-Copy the package to the phone, then run as root:
+In the download folder, run `sudo apt install ./FILE.deb` using the downloaded
+package filename. APT resolves the rootless package dependencies.
 
-```sh
-export PATH=/var/jb/usr/bin:/var/jb/bin:/var/jb/usr/sbin:/var/jb/sbin:$PATH
-apt-get install git ripgrep ca-certificates
-dpkg -i /var/tmp/com.openai.codex-ios_0.168.0-2+rootless_iphoneos-arm64.deb
-```
-
-Open NewTerm as `mobile`:
+Open NewTerm as `mobile` and verify the installation.
 
 ```sh
 codex --version
@@ -61,6 +31,25 @@ lets both WebSocket and HTTPS transports verify their peer certificates.
 Explicit `CODEX_CA_CERTIFICATE`, `SSL_CERT_FILE`, and `SSL_CERT_DIR` settings
 remain unchanged.
 
+## Build Codex 0.168.0 from source
+
+The pinned release tag, commit, archive checksum, and Rust version are recorded
+in `UPSTREAM.txt`. On macOS, install Xcode, rustup, `dpkg-deb`, and `ldid`. Set
+`SDKROOT` to an iPhoneOS device SDK such as Theos `iPhoneOS18.5.sdk`.
+
+```sh
+export SDKROOT=/path/to/iPhoneOS18.5.sdk
+bash scripts/build-rootless-ios-from-source.sh
+bash scripts/build-ios-code-mode-host.sh .build/codex-rust-v0.168.0
+bash scripts/build-rootless-deb.sh \
+  .build/codex-rust-v0.168.0/codex-rs/target/aarch64-apple-ios/release/codex \
+  .build/codex-rust-v0.168.0/codex-rs/target/aarch64-apple-ios/release/codex-code-mode-host
+```
+
+The package is written to `dist/com.openai.codex-ios_0.168.0-2+rootless_iphoneos-arm64.deb`.
+The build verifies the pinned source checksums and uses Rust 1.95.0. The
+earlier 0.103.0 package is archived in `dist`.
+
 ## Platform features
 
 The complete package requires the matching native iOS `codex-code-mode-host`
@@ -76,8 +65,9 @@ Seatbelt sandboxing on iOS.
 No TLS certificate-validation bypass or binary version-string replacement is
 used by this build.
 
-Native version/help output and recognition of existing ChatGPT authentication
-were verified as `mobile` on an iPhone X running rootless iOS 15.6.1. A live
+Codex 0.168.0 version/help output and recognition of existing ChatGPT
+authentication were verified as `mobile` on an iPhone X running rootless
+iOS 15.6.1. A live
 authenticated model request completed without WebSocket certificate errors or
 HTTPS fallback. A read-only tool request executed `python3 --version` and a
 fixed marker command successfully through the native Code Mode host. The

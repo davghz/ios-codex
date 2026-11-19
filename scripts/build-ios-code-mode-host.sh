@@ -39,27 +39,11 @@ else
     exit 1
 fi
 
-export SDKROOT="${SDKROOT:-${THEOS:-$HOME/theos}/sdks/iPhoneOS18.5.sdk}"
-[ -d "$SDKROOT" ] || { echo 'Set SDKROOT to an iPhoneOS device SDK.' >&2; exit 1; }
-SDKROOT="$(cd "$SDKROOT" && pwd -P)"
-CLANG="$(xcrun --sdk macosx -f clang)"
-export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER="$CLANG"
-export CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="$CLANG"
-export IPHONEOS_DEPLOYMENT_TARGET=15.0
-export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
-export CARGO_PROFILE_RELEASE_LTO=false
-export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
-export CARGO_PROFILE_RELEASE_DEBUG=0
 export RUSTY_V8_ARCHIVE="$ARTIFACTS/$V8_ARCHIVE"
 export RUSTY_V8_ARCHIVE_SHA256="$V8_ARCHIVE_SHA256"
 export RUSTY_V8_SRC_BINDING_PATH="$ARTIFACTS/$V8_BINDING"
-export RUSTC="$(rustup which --toolchain 1.95.0 rustc)"
-export RUSTDOC="$(rustup which --toolchain 1.95.0 rustdoc)"
-(
-    cd "$SOURCE"
-    rustup run 1.95.0 cargo build --release --target aarch64-apple-ios \
-        --manifest-path codex-rs/Cargo.toml -p codex-code-mode-host --bin codex-code-mode-host
-)
+bash "$ROOT/scripts/build-ios-cargo.sh" \
+    "$SOURCE" 1.95.0 codex-code-mode-host codex-code-mode-host
 ldid -S"$ROOT/packaging/rootless/code-mode-host.entitlements.plist" \
     "$SOURCE/codex-rs/target/aarch64-apple-ios/release/codex-code-mode-host"
 echo "Built: $SOURCE/codex-rs/target/aarch64-apple-ios/release/codex-code-mode-host"

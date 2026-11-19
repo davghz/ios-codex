@@ -6,6 +6,13 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BINARY="${1:?Usage: build-rootless-deb.sh /path/to/native-ios-codex /path/to/native-ios-code-mode-host}"
 CODE_MODE_HOST_BINARY="${2:?Provide the native iOS codex-code-mode-host executable}"
 TEMPLATE="$ROOT/packaging/rootless"
+VERSION="${3:-}"
+PROVENANCE="${4:-$TEMPLATE/UPSTREAM.txt}"
+OUTPUT_DIR="${CODEX_PACKAGE_OUTPUT_DIR:-$ROOT/dist}"
+if [ "$#" -ne 2 ] && { [ "$#" -ne 4 ] || ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+\+rootless$ ]]; }; then
+    echo 'Provide a rootless Debian version and its upstream provenance file.' >&2
+    exit 1
+fi
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/codex-rootless.XXXXXX")"
 trap 'rm -rf "$STAGE"' EXIT
 
@@ -25,12 +32,18 @@ done
 mkdir -p "$STAGE/DEBIAN" "$STAGE/var/jb/usr/bin" \
     "$STAGE/var/jb/usr/libexec/codex-ios" \
     "$STAGE/var/jb/usr/share/doc/com.openai.codex-ios"
-cp "$TEMPLATE/DEBIAN/control" "$STAGE/DEBIAN/control"
+if [ -n "$VERSION" ]; then
+    awk -v version="$VERSION" '/^Version:/ {$0 = "Version: " version} {print}' \
+        "$TEMPLATE/DEBIAN/control" > "$STAGE/DEBIAN/control"
+else
+    cp "$TEMPLATE/DEBIAN/control" "$STAGE/DEBIAN/control"
+fi
 cp "$TEMPLATE/codex" "$TEMPLATE/codex-update" "$STAGE/var/jb/usr/bin/"
 cp "$BINARY" "$STAGE/var/jb/usr/libexec/codex-ios/codex"
 cp "$CODE_MODE_HOST_BINARY" "$STAGE/var/jb/usr/libexec/codex-ios/codex-code-mode-host"
-cp "$TEMPLATE/LICENSE" "$TEMPLATE/NOTICE" "$TEMPLATE/UPSTREAM.txt" \
+cp "$TEMPLATE/LICENSE" "$TEMPLATE/NOTICE" \
     "$STAGE/var/jb/usr/share/doc/com.openai.codex-ios/"
+cp "$PROVENANCE" "$STAGE/var/jb/usr/share/doc/com.openai.codex-ios/UPSTREAM.txt"
 cp -R "$TEMPLATE/code-mode-host-licenses" \
     "$STAGE/var/jb/usr/share/doc/com.openai.codex-ios/"
 ldid -S"$TEMPLATE/entitlements.plist" "$STAGE/var/jb/usr/libexec/codex-ios/codex"
@@ -40,8 +53,8 @@ chmod 755 "$STAGE/DEBIAN" "$STAGE/var/jb/usr/bin/"* \
 chmod 644 "$STAGE/DEBIAN/control"
 
 VERSION="$(awk '/^Version:/ {print $2; exit}' "$STAGE/DEBIAN/control")"
-mkdir -p "$ROOT/dist"
-OUTPUT="$ROOT/dist/com.openai.codex-ios_${VERSION}_iphoneos-arm64.deb"
+mkdir -p "$OUTPUT_DIR"
+OUTPUT="$OUTPUT_DIR/com.openai.codex-ios_${VERSION}_iphoneos-arm64.deb"
 # Rootless bootstrap dpkg supports xz; compress both native executables so the
 # distributable stays small enough for repository-hosted package artifacts.
 dpkg-deb --root-owner-group -Zxz -z6 -b "$STAGE" "$OUTPUT"

@@ -1,38 +1,23 @@
 # Codex CLI for iOS
 
-For **rootless iOS 15 or later**, the current package is **Codex 0.168.0**,
-built from the genuine `rust-v0.168.0` upstream release for `aarch64-apple-ios`.
-Use the [rootless package and instructions](packaging/rootless/README.md),
-[native source build script](scripts/build-rootless-ios-from-source.sh), and
-[pinned source provenance](packaging/rootless/UPSTREAM.txt).
-
-
-<!-- latest-rootless-download -->
 ## Latest download
 
-| Release | Rootless package | SHA256 |
-| --- | --- | --- |
-| [Codex 0.168.0](https://github.com/davghz/ios-codex/releases/tag/v0.168.0-2-rootless) | [Download .deb](https://github.com/davghz/ios-codex/releases/download/v0.168.0-2-rootless/com.openai.codex-ios_0.168.0-2%2Brootless_iphoneos-arm64.deb) | [Checksum](https://github.com/davghz/ios-codex/releases/download/v0.168.0-2-rootless/com.openai.codex-ios_0.168.0-2%2Brootless_iphoneos-arm64.deb.sha256) |
+Download the `.deb` and its SHA256 checksum from the
+[latest rootless release](https://github.com/davghz/ios-codex/releases/latest).
+The package requires **jailbroken rootless iOS 15 or later** (`iphoneos-arm64`).
 
-Requires **jailbroken rootless iOS 15 or later** (`iphoneos-arm64`).
-Install from the download folder with APT to resolve dependencies:
+The package installs Codex and the matching native Code Mode host under `/var/jb`.
+Follow the [rootless installation instructions](packaging/rootless/README.md).
 
-```sh
-sudo apt install ./com.openai.codex-ios_0.168.0-2+rootless_iphoneos-arm64.deb
-```
-
-Includes the native Code Mode JavaScript host used by current ChatGPT Codex models. Node.js and npm are separate development tools and are not required by this package.
-<!-- /latest-rootless-download -->
-
-The rootless package installs under `/var/jb` and runs directly without Node.js
-or npm. Its package version is `0.168.0-2+rootless` (`iphoneos-arm64`).
+GitHub Actions checks hourly for new stable Codex releases and publishes the iOS
+package after a successful build. To check on demand, use **Run workflow** in
+[Codex rootless iOS releases](https://github.com/davghz/ios-codex/actions/workflows/rootless-release.yml).
 
 ## Legacy rootful iOS port
 
 The historical instructions below describe the earlier rootful iOS port,
 including its npm wrappers and source base `19afbc35c`. `UPSTREAM_COMMIT.txt`
-and the `source/` mirrors refer to that legacy port, not the 0.168.0 rootless
-build. Follow the rootless instructions linked above for current rootless devices.
+and the `source/` mirrors refer to that legacy port.
 
 ## What This Repo Includes
 

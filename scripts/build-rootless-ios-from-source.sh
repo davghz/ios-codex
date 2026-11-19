@@ -41,25 +41,5 @@ elif ! git -C "$SOURCE" apply --reverse --check "$PATCH"; then
     exit 1
 fi
 
-export SDKROOT="${SDKROOT:-${THEOS:-$HOME/theos}/sdks/iPhoneOS18.5.sdk}"
-[ -d "$SDKROOT" ] || { echo 'Set SDKROOT to an iPhoneOS device SDK.' >&2; exit 1; }
-SDKROOT="$(cd "$SDKROOT" && pwd -P)"
-CLANG="$(xcrun --sdk macosx -f clang)"
-# Explicit compiler paths avoid the system cc shim treating a custom Theos
-# SDK symlink as an Xcode SDK identifier when linking host build scripts.
-export CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER="$CLANG"
-export CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="$CLANG"
-export IPHONEOS_DEPLOYMENT_TARGET=15.0
-export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
-export CARGO_PROFILE_RELEASE_LTO=false
-export CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
-export CARGO_PROFILE_RELEASE_DEBUG=0
-rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target aarch64-apple-ios
-export RUSTC="$(rustup which --toolchain "$RUST_TOOLCHAIN" rustc)"
-export RUSTDOC="$(rustup which --toolchain "$RUST_TOOLCHAIN" rustdoc)"
-(
-    cd "$SOURCE"
-    rustup run "$RUST_TOOLCHAIN" cargo build --release --target aarch64-apple-ios \
-        --manifest-path codex-rs/Cargo.toml -p codex-cli --bin codex
-)
+bash "$ROOT/scripts/build-ios-cargo.sh" "$SOURCE" "$RUST_TOOLCHAIN" codex-cli codex
 echo "Built: $SOURCE/codex-rs/target/aarch64-apple-ios/release/codex"
