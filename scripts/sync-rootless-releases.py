@@ -9,12 +9,14 @@ import re
 import subprocess
 import sys
 
+from rootless_version import package_name, package_revision
+
 
 SEMVER = r"[0-9]+\.[0-9]+\.[0-9]+"
 UPSTREAM = "openai/codex"
 UPSTREAM_TAG = re.compile(f"rust-v({SEMVER})")
 ROOTLESS_TAG = re.compile(f"v({SEMVER})-([0-9]+)-rootless")
-PACKAGE_FILE = re.compile(rf"com\.openai\.codex-ios_({SEMVER})-1\+rootless_iphoneos-arm64\.deb")
+PACKAGE_FILE = re.compile(rf"com\.openai\.codex-ios_({SEMVER})-([0-9]+)\+rootless_iphoneos-arm64\.deb")
 BASE_VERSION = (0, 168, 0)
 AUTOMATED_DRAFT = "<!-- Automated ios-codex rootless release -->"
 
@@ -27,17 +29,13 @@ def semver(version):
     return tuple(map(int, version.split(".")))
 
 
-def package_name(version, revision="1"):
-    return f"com.openai.codex-ios_{version}-{revision}+rootless_iphoneos-arm64.deb"
-
-
 def releases(repo):
     pages = gh_json("api", "--paginate", "--slurp", f"repos/{repo}/releases?per_page=50")
     return [release for page in pages for release in page]
 
 
 def published_versions(local_releases):
-    versions = set()
+    versions = {}
     for release in local_releases:
         tag = ROOTLESS_TAG.fullmatch(release["tag_name"])
         if not tag or release["draft"] or release["prerelease"]:
@@ -45,7 +43,8 @@ def published_versions(local_releases):
         name = package_name(tag[1], tag[2])
         assets = {asset["name"] for asset in release["assets"] if asset["state"] == "uploaded"}
         if {name, name + ".sha256"} <= assets:
-            versions.add(semver(tag[1]))
+            version = semver(tag[1])
+            versions[version] = max(int(tag[2]), versions.get(version, 0))
     return versions
 
 
@@ -69,7 +68,10 @@ def discover(repo, requested_tag):
     missing = []
     for tag in tags:
         match = UPSTREAM_TAG.fullmatch(tag)
-        if match and semver(match[1]) > BASE_VERSION and semver(match[1]) not in published:
+        if not match:
+            continue
+        number = semver(match[1])
+        if number > BASE_VERSION and published.get(number, 0) < package_revision(match[1]):
             missing.append({"tag": tag, "version": match[1]})
     missing.sort(key=lambda release: semver(release["version"]))
     print("Pending upstream releases:", ", ".join(release["tag"] for release in missing) or "none")
@@ -78,8 +80,9 @@ def discover(repo, requested_tag):
 
 
 def publish_release(repo, artifact, version, existing, latest):
-    tag = f"v{version}-1-rootless"
-    package = artifact / package_name(version)
+    revision = package_revision(version)
+    tag = f"v{version}-{revision}-rootless"
+    package = artifact / package_name(version, revision)
     checksum = package.with_name(package.name + ".sha256")
     with package.open("rb") as stream:
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
@@ -88,7 +91,7 @@ def publish_release(repo, artifact, version, existing, latest):
     fields = subprocess.check_output([
         "dpkg-deb", "--show", "--showformat=${Package}\n${Version}\n${Architecture}\n", package,
     ], text=True).splitlines()
-    if fields != ["com.openai.codex-ios", f"{version}-1+rootless", "iphoneos-arm64"]:
+    if fields != ["com.openai.codex-ios", f"{version}-{revision}+rootless", "iphoneos-arm64"]:
         raise ValueError(f"Unexpected package metadata for {package.name}")
 
     provenance = (artifact / "UPSTREAM.txt").read_text()
@@ -133,7 +136,7 @@ def publish(repo, artifacts):
     # download-artifact extracts a single artifact at the destination root.
     for package in artifacts.rglob("*.deb"):
         match = PACKAGE_FILE.fullmatch(package.name)
-        if package.is_file() and match:
+        if package.is_file() and match and int(match[2]) == package_revision(match[1]):
             ready.append((match[1], package.parent))
     if not ready:
         print("No completed packages to publish", file=sys.stderr)
@@ -142,12 +145,12 @@ def publish(repo, artifacts):
     failed = False
     for version, artifact in sorted(ready, key=lambda item: semver(item[0])):
         number = semver(version)
-        if number in published:
+        if published.get(number, 0) >= package_revision(version):
             print(f"Codex {version} is already published")
             continue
         try:
-            publish_release(repo, artifact, version, existing, number > max(published, default=BASE_VERSION))
-            published.add(number)
+            publish_release(repo, artifact, version, existing, number >= max(published, default=BASE_VERSION))
+            published[number] = package_revision(version)
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
             print(f"::error::Could not publish Codex {version}: {error}", file=sys.stderr)
             failed = True

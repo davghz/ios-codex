@@ -52,8 +52,9 @@ earlier 0.103.0 package is archived in `dist`.
 
 ## Platform features
 
-The launcher raises a low soft open-file limit for Codex and its subprocesses,
-up to 4,096 descriptors where the device and account allow it.
+On iOS, Codex polls watched paths every five seconds. Recursive skill and
+workspace watches can cover more files than the shell's open-file limit.
+Polling lets Codex monitor those trees while retaining the shell's limit.
 
 The complete package requires the matching native iOS `codex-code-mode-host`
 executable alongside the CLI, because modern model catalogs can require code
@@ -61,8 +62,9 @@ mode even when experimental feature flags are disabled. The package builder
 checks that both inputs target iOS and installs them as sibling executables.
 The helper uses a separate entitlement plist enabling extended virtual
 addressing, which its V8 heap reservation requires on the tested iPhone X.
-Native clipboard image paste is unavailable because arboard does not support
-iOS. Terminal text paste remains available. The port does not provide macOS
+The foreground terminal handles the iOS pasteboard. NewTerm's iOS 15 input
+build sends text as a bracketed paste and passes pasted images to the composer
+as local PNG paths. The port does not provide macOS
 Seatbelt sandboxing on iOS.
 
 No TLS certificate-validation bypass or binary version-string replacement is

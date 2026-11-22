@@ -22,17 +22,6 @@ if [ "${1:-}" = update ]; then
     exec /var/jb/usr/bin/codex-update "$@"
 fi
 
-# Codex and its subprocesses inherit the terminal's file-descriptor limit.
-open_file_limit=4096
-for ceiling in "$(ulimit -H -n)" "$(sysctl -n kern.maxfilesperproc 2>/dev/null)"; do
-    if [ "$ceiling" -lt "$open_file_limit" ] 2>/dev/null; then
-        open_file_limit=$ceiling
-    fi
-done
-if [ "$(ulimit -S -n)" -lt "$open_file_limit" ] 2>/dev/null; then
-    ulimit -S -n "$open_file_limit" 2>/dev/null || :
-fi
-
 exec /var/jb/usr/libexec/codex-ios/codex \
     -c tui.disable_paste_burst=true \
     -c check_for_update_on_startup=false "$@"

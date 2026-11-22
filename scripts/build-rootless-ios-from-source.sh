@@ -41,5 +41,13 @@ elif ! git -C "$SOURCE" apply --reverse --check "$PATCH"; then
     exit 1
 fi
 
+WATCH_PATCH="$ROOT/patches/rootless/ios-file-watcher.patch"
+if git -C "$SOURCE" apply --check "$WATCH_PATCH"; then
+    git -C "$SOURCE" apply "$WATCH_PATCH"
+elif ! git -C "$SOURCE" apply --reverse --check "$WATCH_PATCH"; then
+    echo 'Source does not match the iOS file watcher patch.' >&2
+    exit 1
+fi
+
 bash "$ROOT/scripts/build-ios-cargo.sh" "$SOURCE" "$RUST_TOOLCHAIN" codex-cli codex
 echo "Built: $SOURCE/codex-rs/target/aarch64-apple-ios/release/codex"

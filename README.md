@@ -10,7 +10,9 @@ The package installs Codex and the matching native Code Mode host under `/var/jb
 Follow the [rootless installation instructions](packaging/rootless/README.md).
 
 GitHub Actions checks hourly for new stable Codex releases and publishes the iOS
-package after a successful build. To check on demand, use **Run workflow** in
+package after a successful build. It also picks up a new Debian revision of an
+existing upstream version, including the iOS file-watcher fix in 0.171.0 revision 2.
+To check on demand, use **Run workflow** in
 [Codex rootless iOS releases](https://github.com/davghz/ios-codex/actions/workflows/rootless-release.yml).
 
 ## Legacy rootful iOS port

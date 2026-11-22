@@ -1,0 +1,43 @@
+--- a/codex-rs/file-watcher/src/lib.rs
++++ b/codex-rs/file-watcher/src/lib.rs
+@@ -14,7 +14,10 @@
+ 
+ use notify::Event;
+ use notify::EventKind;
+-use notify::RecommendedWatcher;
++#[cfg(target_os = "ios")]
++use notify::PollWatcher as PlatformWatcher;
++#[cfg(not(target_os = "ios"))]
++use notify::RecommendedWatcher as PlatformWatcher;
+ use notify::RecursiveMode;
+ use notify::Watcher;
+ use tokio::runtime::Handle;
+@@ -217,7 +220,7 @@
+ }
+ 
+ struct FileWatcherInner {
+-    watcher: RecommendedWatcher,
++    watcher: PlatformWatcher,
+     watched_paths: HashMap<PathBuf, RecursiveMode>,
+ }
+ 
+@@ -389,9 +392,16 @@
+     pub fn new() -> notify::Result<Self> {
+         let (raw_tx, raw_rx) = mpsc::unbounded_channel();
+         let raw_tx_clone = raw_tx;
+-        let watcher = notify::recommended_watcher(move |res| {
+-            let _ = raw_tx_clone.send(res);
+-        })?;
++        let config = notify::Config::default();
++        // iOS kqueue retains an open vnode for every entry in recursive watches.
++        #[cfg(target_os = "ios")]
++        let config = config.with_poll_interval(Duration::from_secs(5));
++        let watcher = PlatformWatcher::new(
++            move |res| {
++                let _ = raw_tx_clone.send(res);
++            },
++            config,
++        )?;
+         let inner = FileWatcherInner {
+             watcher,
+             watched_paths: HashMap::new(),

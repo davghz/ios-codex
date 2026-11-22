@@ -11,6 +11,8 @@ import sys
 import tempfile
 import tomllib
 
+from rootless_version import package_name, package_revision
+
 
 ROOT = Path(__file__).resolve().parents[1]
 FORK = "openai-oss-forks/rusty_v8"
@@ -120,7 +122,8 @@ def build(tag, output):
     if release["draft"] or release["prerelease"] or release["tag_name"] != tag:
         raise ValueError(f"{tag} is not a published stable upstream release")
     commit = github(f"repos/openai/codex/commits/{tag}")["sha"]
-    package_version = f"{version}-1+rootless"
+    revision = package_revision(version)
+    package_version = f"{version}-{revision}+rootless"
     output.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory(prefix="codex-ios-") as tmp:
@@ -136,6 +139,7 @@ def build(tag, output):
         patches = ROOT / "patches/rootless"
         subprocess.run([
             "git", "-C", source, "apply", patches / "codex-ios.patch",
+            patches / "ios-file-watcher.patch",
             patches / "codex-code-mode-host-0.168.0-ios.patch",
         ], check=True)
 
@@ -160,7 +164,7 @@ def build(tag, output):
             "bash", ROOT / "scripts/build-rootless-deb.sh", binaries / "codex",
             binaries / "codex-code-mode-host", package_version, provenance,
         ], env={**env, "CODEX_PACKAGE_OUTPUT_DIR": str(output)}, check=True)
-        package = output / f"com.openai.codex-ios_{package_version}_iphoneos-arm64.deb"
+        package = output / package_name(version, revision)
         output.joinpath(package.name + ".sha256").write_text(f"{sha256(package)}  {package.name}\n")
         output.joinpath(provenance.name).write_text(provenance.read_text())
 
