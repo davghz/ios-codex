@@ -10,7 +10,7 @@
      target_os = "openbsd"
 --- a/codex-rs/mxc-sandbox/Cargo.toml
 +++ b/codex-rs/mxc-sandbox/Cargo.toml
-@@ -21,10 +21,13 @@
+@@ -21,9 +21,12 @@
  codex-utils-absolute-path = { workspace = true }
  codex-utils-path-uri = { workspace = true }
  codex-windows-sandbox = { workspace = true }
@@ -24,7 +24,6 @@
 +mxc-sdk = { workspace = true }
  
  [target.'cfg(windows)'.dependencies]
- flatbuffers = { workspace = true }
 --- a/codex-rs/tui/Cargo.toml
 +++ b/codex-rs/tui/Cargo.toml
 @@ -166,9 +166,9 @@

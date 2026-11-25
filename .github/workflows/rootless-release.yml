@@ -87,6 +87,8 @@ jobs:
           pattern: rootless-*
           path: release-artifacts
       - name: Publish completed packages
+        # A mixed matrix can still have packages to publish after a build failure.
+        if: ${{ needs.build.result == 'success' || hashFiles('release-artifacts/**') != '' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/sync-rootless-releases.py publish release-artifacts
